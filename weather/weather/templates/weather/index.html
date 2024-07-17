@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ru">
+{% load static %}
+<head>
+    <meta charset="UTF-8">
+    <title>Прогноз погоды</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+        .weather-container {
+            background-color: #fff;
+            border-radius: 15px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            width: 400px;
+            padding: 20px;
+            text-align: center;
+        }
+        .input-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .input-container input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 25px;
+            text-align: center;
+            font-size: 16px;
+        }
+        .input-container .icon {
+            margin-left: -35px;
+            margin-right: 10px;
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+        }
+        .weather-result {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+        }
+        .weather-icon {
+            flex: 1;
+            text-align: center;
+        }
+        .weather-icon img {
+            width: 100px;
+            height: 100px;
+        }
+        .temperature {
+            flex: 1;
+            font-size: 48px;
+            font-weight: bold;
+        }
+        .min-temp, .max-temp, .temperature-feels {
+            font-size: 16px;
+            color: #777;
+        }
+        .min-temp {
+            text-align: left;
+        }
+        .max-temp {
+            text-align: right;
+        }
+        .temperature-feels {
+            margin-top: 10px;
+            text-align: center;
+        }
+        .city-name {
+            font-size: 24px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .history-container {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .history-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            width: 100%;
+            text-align: center;
+        }
+        .history-item {
+            margin: 5px 10px;
+            color: #555;
+            cursor: pointer;
+        }
+        .history-item:hover {
+            text-decoration: underline;
+        }
+        .autocomplete-suggestions {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            border: 1px solid #ccc;
+            background-color: #fff;
+            border-radius: 0 0 25px 25px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        .autocomplete-suggestion {
+            padding: 10px;
+            cursor: pointer;
+        }
+        .autocomplete-suggestion:hover {
+            background-color: #e9e9e9;
+        }
+    </style>
+</head>
+<body>
+    <div class="weather-container">
+        {% if messages %}
+
+            {% for message in messages %}
+
+                {% if message.tags == 'error' %}
+                    <div class="alert alert-danger" role="alert">
+                        {{ message }}
+                    </div>
+                {% else %}
+                    <div class="alert alert-{{ message.tags }}" role="alert">
+                        {{ message }}
+                    </div>
+                {% endif %}
+
+            {% endfor %}
+
+        {% endif %}
+        <form method="post">
+            {% csrf_token %}
+            <div class="input-container">
+                <input id="city" type="text" name="city" placeholder="Введите ваш город">
+                <img src="{% get_media_prefix %}icons/search.png" class="icon" alt="search icon">
+                <div id="autocomplete-list" class="autocomplete-suggestions"></div>
+            </div>
+            <button type="button" style="display: none;"></button>
+        </form>
+        {% if temperature != None %}
+        <div class="city-name">{{ city }}</div>
+        <div class="weather-result">
+            <div class="weather-icon">
+                <img src="{% get_media_prefix %}icons/{{ icon }}.png" alt="weather icon">
+            </div>
+            <div class="temperature">{{ temperature }}°</div>
+        </div>
+        <div class="weather-result">
+            <div class="min-temp">Мин: {{ min_temp }}°</div>
+            <div class="max-temp">Макс: {{ max_temp }}°</div>
+        </div>
+        <div class="temperature-feels">Ощущается как: {{ temperature_feels }}°</div>
+        {% endif %}
+        <div class="history-container">
+            {% if search_history %}
+                <div class="history-title">История запросов:</div>
+                {% for city, count in search_history %}
+                    <div class="history-item" onclick="searchCity('{{ city }}')">{{ city }} x {{ count }}</div>
+                {% endfor %}
+            {% endif %}
+        </div>
+    </div>
+    <script src="{% static 'autocomplete.js' %}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const cityInput = document.querySelector('input[name="city"]');
+            const autocompleteList = document.getElementById('autocomplete-list');
+
+            cityInput.addEventListener('input', function() {
+                const value = this.value;
+                autocompleteList.innerHTML = '';
+                if (!value) return;
+
+                const suggestions = cities.filter(city => city.toLowerCase().includes(value.toLowerCase()));
+                suggestions.forEach(suggestion => {
+                    const div = document.createElement('div');
+                    div.classList.add('autocomplete-suggestion');
+                    div.innerText = suggestion;
+                    div.addEventListener('click', function() {
+                        cityInput.value = suggestion;
+                        autocompleteList.innerHTML = '';
+                        document.querySelector('form').submit();
+                    });
+                    autocompleteList.appendChild(div);
+                });
+            });
+
+            cityInput.addEventListener('keypress', function(event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    document.querySelector('form').submit();
+                }
+            });
+
+            document.addEventListener('click', function(e) {
+                if (e.target !== cityInput) {
+                    autocompleteList.innerHTML = '';
+                }
+            });
+        });
+
+        function searchCity(city) {
+            const cityInput = document.querySelector('input[name="city"]');
+            cityInput.value = city;
+            document.querySelector('form').submit();
+        }
+    </script>
+</body>
+</html>
