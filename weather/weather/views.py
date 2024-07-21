@@ -10,7 +10,7 @@ def index(request):
         if city != '':
             try:
                 url = (f'http://api.openweathermap.org/data/2.5/weather?q={city}'
-                       f'&units=metric&lang=ru&appid=79d1ca96933b0328e1c7e3e7a26cb347')
+                       f'&units=metric&lang=ru&appid=d3ea144483f5f09671aa049e4f99353a')
                 print(url)
                 weather_data = req.get(url).json()
                 print(weather_data)
